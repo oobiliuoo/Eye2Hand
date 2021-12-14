@@ -126,6 +126,26 @@ void eye2handCal()
 
 }
 
+
+void showPos(cv::Mat color,cv::Mat depth,const cv::Mat RgbParam)
+{
+	cv::Point2d p(300, 200);
+	cv::Mat temp = color.clone();
+	cv::circle(temp, p, 10, cv::Scalar(0, 0, 255));
+	cv::Point3f p2;
+	piexl2Cam(p, p2, depth, RgbParam);
+//	std::cout << "p2" << p2;
+	std::ostringstream s2;
+	s2 << "P(" << p.x << "," << p.y << ")" << "\tdepth: x:" << p2.x << ",y:" << p2.y<<",z:" << p2.z;
+	std::string str_pos(s2.str());
+	cv::Point pos(0, 50);
+	cv::putText(temp, str_pos, pos, cv::FONT_HERSHEY_DUPLEX, 0.6f, cv::Scalar(0, 0, 255));
+	cv::imshow("temp", temp);
+
+
+}
+
+
 void test(BLAstraCamrea* cam)
 {
 	cv::Mat color = cam->getColor();
