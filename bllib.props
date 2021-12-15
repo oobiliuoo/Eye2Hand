@@ -5,11 +5,11 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>E:\biliu\MyLib\CalibrationDll\v1;E:\biliu\MyLib\AstraGCameraDll\v2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\biliu\MyLib\CalibrationDll\v2;E:\biliu\MyLib\AstraGCameraDll\v2.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>E:\biliu\MyLib\CalibrationDll\v1;E:\biliu\MyLib\AstraGCameraDll\v2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>AstraGCamera_v2.lib;Calibration_v1_Dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>E:\biliu\MyLib\CalibrationDll\v2;E:\biliu\MyLib\AstraGCameraDll\v2.1;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>AstraGCamera_v2_1.lib;Calibration_v2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />

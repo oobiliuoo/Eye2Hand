@@ -1,4 +1,3 @@
-
 #include "BLFactory.h"
 #include "BLCalibration.h"
 #include "keyHead.h"
@@ -8,6 +7,7 @@
 BLAstraCamrea* cam;
 
 int tcp_run = 1;
+int con_run = 1;
 
 // AstraGCamera 类的回调函数，用来处理获取的颜色图和深度图
 void keyCallback(cv::Mat colorImg, cv::Mat depthImg)
@@ -15,7 +15,7 @@ void keyCallback(cv::Mat colorImg, cv::Mat depthImg)
 
 	int key = cv::waitKey(30) & 0xFF;
 
-	showPos(colorImg, depthImg,cam->getRgbParamMat());
+//	showPos(cam);
 	
 
 	switch (key)
@@ -25,7 +25,7 @@ void keyCallback(cv::Mat colorImg, cv::Mat depthImg)
 		// 获取像素点对应的相机坐标
 	
 		cv::Point2d p(300, 200);
-		cv::Point3f p2;
+		cv::Point3d p2;
 		piexl2Cam(p, p2, depthImg, cam->RgbParamMat);
 		std::cout << "p2" << p2;
 
@@ -89,10 +89,10 @@ void keyCallback(cv::Mat colorImg, cv::Mat depthImg)
 	case ACTION_ESC:
 	{
 		// 关闭程序
-		cam->close();
-		tcp_run = 0;
-		cv::destroyAllWindows();
-		std::cout << "结束程序....\n";
+
+		close(cam, tcp_run, con_run);
+
+
 		break;
 	}
 	default:
@@ -109,21 +109,22 @@ int main()
 	BLfactory b;
 	cam = b.createBLAstraCamera();
 	cam->setkeyCallback(keyCallback);
-	cam->setShowMode(2);
+	cam->setShowMode(3);
 	cam->start();
 
 	std::thread threadTcp([&] {tcp_Robotic_Arm(tcp_run); });
 
-	Sleep(2000);
-	char recv_msg[1024];
-	char send_msg[1024];
-	send_msg[0] = 'A';
+	//Sleep(2000);
+	//char recv_msg[1024];
+	//char send_msg[1024];
+	//send_msg[0] = 'A';
 
-	tcp_send(send_msg);
-	tcp_recv(recv_msg);
+	//tcp_send(send_msg);
+	//tcp_recv(recv_msg);
 
-	printf("main: %s\n\n", recv_msg);
-
+	//printf("main: %s\n\n", recv_msg);
+	
+	control(cam,tcp_run,con_run);
 
 	threadTcp.join();
 

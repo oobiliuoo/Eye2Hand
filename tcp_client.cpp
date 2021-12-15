@@ -119,7 +119,7 @@ int tcp_send(char* bufSend) {
 
 	//gets_s(Send);
 
-	send_len = send(sock, bufSend, 1, 0);
+	send_len = send(sock, bufSend, BUF_SIZE, 0);
 	if (send_len < 0) {
 		cout << "·¢ËÍÊ§°Ü£¡" << endl;
 	}
