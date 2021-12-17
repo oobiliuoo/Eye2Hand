@@ -108,8 +108,8 @@ int main()
 {
 	BLfactory b;
 	cam = b.createBLAstraCamera();
-	cam->setkeyCallback(keyCallback);
-	cam->setShowMode(3);
+//	cam->setkeyCallback(keyCallback);
+	cam->setShowMode(1);
 	cam->start();
 
 	std::thread threadTcp([&] {tcp_Robotic_Arm(tcp_run); });

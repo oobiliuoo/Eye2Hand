@@ -51,26 +51,48 @@ int saveImgNum = 0;
 int MODE = 0;
 
 std::ofstream fout;
+cv::Size board_size = cv::Size(11, 8);    /* 标定板上每行、列的角点数 */
+cv::Mat cur_save_img;
 
-void saveImg(cv::Mat colorImg, int mode, cv::Mat depthImg = cv::Mat::zeros(3, 3, CV_32FC1))
+const int X_ADD = 17;
+const int Y_ADD = -19;
+const int Z_ADD = 5;
+
+int saveImg(cv::Mat colorImg, int mode, cv::Mat depthImg = cv::Mat::zeros(3, 3, CV_32FC1))
 {
+	cur_save_img = colorImg.clone();
 	// 保存文件
 	std::ostringstream s;
 	// 按索引定义文件名存储图片
 	s << FILE_PATH[mode] << saveImgNum << IMG_TYPE;
 	std::string imageName(s.str());
-	cv::imwrite(imageName, colorImg);
+
 
 	if (mode == 0)
+	{
 		std::cout << "拍照中...";
+		cv::imwrite(imageName, cur_save_img);
+	}
 	else if (mode == 1)
 	{
 		std::cout << "相机标定数据获取中...";
+		if (!bl::checkImg(cur_save_img, board_size))
+		{
+			std::cout << "照片检测不到角点，请重新拍摄！";
+			return 1;
+		}
+		cv::imwrite(imageName, cur_save_img);
 		fout << imageName << std::endl;
 	}
 	else if (mode == 2)
 	{
 		std::cout << "手眼标定数据获取中...";
+		if (!bl::checkImg(cur_save_img, board_size))
+		{
+			std::cout << "照片检测不到角点，请重新拍摄！";
+			return 1;
+		}
+		cv::imwrite(imageName, cur_save_img);
 		fout << imageName << std::endl;
 	}
 	else if (mode == 3)
@@ -85,6 +107,7 @@ void saveImg(cv::Mat colorImg, int mode, cv::Mat depthImg = cv::Mat::zeros(3, 3,
 
 	saveImgNum++;
 	std::cout << "保存成功....  :" << saveImgNum << std::endl;
+	return 0;
 
 }
 
@@ -110,7 +133,7 @@ void camCalibration(cv::Mat camPram, cv::Mat camK)
 
 void piexl2Cam(cv::Point2d piexlPoint, cv::Point3d& camPoint, const cv::Mat depthImg, const cv::Mat camParm)
 {
-	float zc = (float)depthImg.at<uint16_t>(piexlPoint.x, piexlPoint.y);
+	float zc = (float)depthImg.at<uint16_t>(piexlPoint.y, piexlPoint.x);
 	bl::piexl2Cam(piexlPoint, camPoint, zc, camParm);
 
 }
@@ -124,7 +147,8 @@ void eye2handCal()
 		std::cout << "共获取 " << saveImgNum << " 张图片\n 开始手眼标定" << std::endl;
 		//cv::Mat t;
 		//	MyCalibration::eye2HandCalibration(EH_CAL_IMG_PATH_TXT, EH_CAL_ROBOT_PATH_TXT,t);
-		MODE == 0;
+		saveImgNum = 0;
+		MODE = 0;
 	}
 	else
 	{
@@ -141,12 +165,12 @@ void eye2handCal()
 
 void showPos(BLAstraCamrea* cam)
 {
-	cv::Point2d p(320, 100);
+	cv::Point2d p(300, 300);
 	cv::Mat temp = cam->getColor();
 	cv::circle(temp, p, 10, cv::Scalar(0, 0, 255));
 	cv::Point3f p2;
 	//	piexl2Cam(p, p2, depth, RgbParam);
-
+	
 	cv::Mat t = cam->getDepth();
 	cv::normalize(t, t, 255, 1, cv::NORM_INF);
 	t.convertTo(t, CV_8UC1);
@@ -154,7 +178,7 @@ void showPos(BLAstraCamrea* cam)
 	cv::imshow("t", t);
 
 	p2 = cam->piexl2cam(p);
-	//	std::cout << "p2" << p2;
+//	std::cout << "s p2" << p2<<std::endl;
 	std::ostringstream s2;
 	s2 << "P(" << p.x << "," << p.y << ")" << "\tdepth: x:" << p2.x << ",y:" << p2.y << ",z:" << p2.z;
 	std::string str_pos(s2.str());
@@ -182,6 +206,13 @@ void control(BLAstraCamrea* cam, int& tcp_run, int& con_run)
 	char bufSend[BUF_SIZE] = { 0 };//发送缓冲区
 	char bufRecv[BUF_SIZE] = { 0 };//接受缓冲区
 	cv::Mat_<double> ToolPose;
+	cv::Mat_<double> TargetPose;
+	std::vector<cv::Point3d> robotPoints;
+	std::vector<cv::Point3d> cameraPoints;
+
+	cv::Mat H_cam2base;
+	bool i_flog = 0;
+
 	while (con_run == 1)
 	{
 
@@ -204,6 +235,19 @@ void control(BLAstraCamrea* cam, int& tcp_run, int& con_run)
 		case '1':
 		{
 
+			// 获取当前照片
+			if (!i_flog)
+			{
+				eye2handCal();
+				i_flog = 1;
+			}
+
+			if (0 != saveImg(cam->getColor(), 2))
+			{
+				break;
+			}
+
+
 			// 获取机器人位姿
 		   /* memset(bufSend, 0, BUF_SIZE);
 			memset(bufRecv, 0, BUF_SIZE);*/
@@ -215,27 +259,109 @@ void control(BLAstraCamrea* cam, int& tcp_run, int& con_run)
 			//解析位姿
 			ToolPose = bl::analyzePose(bufRecv, sizeof(bufRecv), ToolPose);
 
-			// 获取当前照片
-			if(ToolPose.rows == 1)
-				eye2handCal();
 
-			saveImg(cam->getColor(),2);
 			break;
 		}
 
 		case '2':
 		{
+			i_flog = 0;
 			// 保存机器人位姿
-			bl::writeRobotPos(ToolPose, EH_CAL_ROBOT_PATH_TXT);
+		//	bl::writeRobotPos(ToolPose, EH_CAL_ROBOT_PATH_TXT);
 			// 修改相机状态
-			eye2handCal();
+		//	eye2handCal();
 			// 开始手眼标定
-			cv::Mat H;
+			cv::Mat H = cv::Mat(4, 4, CV_64F, cv::Scalar(0));
 			bl::hand2eyeCalibration(EH_CAL_IMG_PATH_TXT, EH_CAL_ROBOT_PATH_TXT, H, cam->getRgbParamMat(), cam->getRgbDistCoeffs());
-
+			H_cam2base = H.clone();
+			std::cout << "H:" << H << std::endl;
 
 			break;
 		}
+
+		case '3':
+		{
+			// 提取图像中的点
+			std::vector<cv::Point3d> camPoints = cam->getCamPoints();
+			cv::Point3d p(-19, 94, 295);
+			if(camPoints.size()!=0)
+				p = camPoints[0];
+			//
+			cv::Mat pMat = (cv::Mat_<double>(4, 1) << p.x, p.y, p.z, 1);
+			std::cout << "\n pMat:\n" << pMat << std::endl;
+			// 求对应的基地坐标
+			cv::Mat pMat2 = H_cam2base * pMat;
+			cv::Point3d p2(pMat2.at<double>(0, 0), pMat2.at<double>(1, 0), pMat2.at<double>(2, 0));
+			p2.x += X_ADD;
+			p2.y += Y_ADD;
+			p2.z += Z_ADD;
+			std::cout << "world p: " << p2;
+
+
+			memset(bufSend, 0, BUF_SIZE);
+			sprintf_s(bufSend, "DA %3.3f %3.3f %3.3f", p2.x, p2.y, p2.z);
+			tcp_send(bufSend);
+			break;
+		}
+		case '4':
+		{
+			
+			// 获取p
+			bufSend[0] = 'A';
+			tcp_send(bufSend);
+			int ok = tcp_recv(bufRecv);
+			if (ok < 0) break;
+			printf("%s\n\n", bufRecv);
+			//解析位姿
+			TargetPose = bl::analyzePose(bufRecv, sizeof(bufRecv), TargetPose);
+			int rows = TargetPose.rows - 1;
+			cv::Point3d tempP;
+			tempP.x = TargetPose.at<double>(rows, 0);
+			tempP.y = TargetPose.at<double>(rows, 1);
+			tempP.z = TargetPose.at<double>(rows, 2);
+			robotPoints.push_back(tempP);
+			std::cout << "aa:" << tempP;
+			break;
+		}
+
+		case '5':
+		{
+		
+			cameraPoints = cam->getCamPoints();
+
+			// 乘以手眼
+			for (int i = 0; i < cameraPoints.size(); i++) 
+			{
+				cv::Mat pMat = (cv::Mat_<double>(4, 1) << cameraPoints[i].x, cameraPoints[i].y, cameraPoints[i].z, 1);
+				// 求对应的基地坐标
+				cv::Mat pMat2 = H_cam2base * pMat;
+				cameraPoints[i].x = pMat2.at<double>(0, 0) + X_ADD;
+				cameraPoints[i].y = pMat2.at<double>(1, 0) + Y_ADD;
+				cameraPoints[i].z = pMat2.at<double>(2, 0) + Z_ADD;
+			}
+
+			cv::Mat R, t,H;
+			bl::ICP(cameraPoints,robotPoints,R,t);
+			bl::R_T2H(R, t, H);
+			std::cout << "\nH:\n" << H << std::endl;
+			break;
+		}
+
+		case '6':
+		{
+		
+			if (0 != saveImg(cam->getColor(), 0))
+			{
+				break;
+			}
+			cv::Mat R, t, H;
+			bl::getImgRT(cur_save_img, R, t, cam->getRgbParamMat(), cam->getRgbDistCoeffs());
+			bl::R_T2H(R, t, H);
+			std::cout << "\nH:\n" << H << std::endl;
+
+			break;
+		}
+
 
 		default:
 			tcp_send(bufSend);
